@@ -20,9 +20,18 @@ from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
+
+def _get_secret(key: str, default: str = "") -> str:
+    """Read a secret from st.secrets (Streamlit Cloud) or os.environ (local .env)."""
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key, default)
+
+
 # Groq model is configurable so we can swap when a model is deprecated
 # without a code push. Override via the GROQ_MODEL env var (or Streamlit secret).
-GROQ_MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+GROQ_MODEL = _get_secret("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
 # =====================================================
 # PAGE CONFIG
@@ -567,7 +576,6 @@ header           { visibility: hidden; }
 # CONFIG
 # =====================================================
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 COLLECTION_NAME = "tableau_docs"
 
 LOGO_PATH = "Tableau_logo.png"
@@ -588,7 +596,15 @@ def load_qdrant():
 
 @st.cache_resource(show_spinner=False)
 def load_groq():
-    return Groq(api_key=GROQ_API_KEY)
+    api_key = _get_secret("GROQ_API_KEY")
+    if not api_key:
+        st.error(
+            "⚠️ **GROQ_API_KEY is not set.** "
+            "Go to **Manage app → Settings → Secrets** and add:\n\n"
+            "```toml\nGROQ_API_KEY = \"gsk_your_key_here\"\n```"
+        )
+        st.stop()
+    return Groq(api_key=api_key)
 
 
 # =====================================================
